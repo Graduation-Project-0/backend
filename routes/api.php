@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::group([
@@ -16,4 +15,10 @@ Route::group([
     // password reset
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+
+    // social media login
+    Route::get('/auth/{provider}/redirect', [AuthController::class, 'redirect'])
+        ->where('provider', 'google|facebook|twitter|x');
+    Route::get('/auth/{provider}/callback', [AuthController::class, 'callback'])
+        ->where('provider', 'google|facebook|twitter|x');
 });

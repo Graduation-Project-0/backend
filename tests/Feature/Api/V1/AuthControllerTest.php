@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\ResetPasswordNotification;
 use Laravel\Sanctum\Sanctum;
+use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\User as SocialiteUser;
+use Mockery;
 use Tests\TestCase;
 
 class AuthControllerTest extends TestCase
@@ -731,6 +734,258 @@ class AuthControllerTest extends TestCase
         $this->assertDatabaseHas('password_reset_tokens', [
             'email' => 'john@example.com',
         ]);
+    }
+
+    /**
+     * Test redirect to Google OAuth.
+     */
+    public function test_redirect_to_google_oauth(): void
+    {
+        $response = $this->get('/api/v1/auth/google/redirect');
+
+        // Should redirect to Google OAuth
+        $response->assertStatus(302);
+        $this->assertStringContainsString('accounts.google.com', $response->headers->get('Location'));
+    }
+
+    /**
+     * Test redirect to Facebook OAuth.
+     */
+    public function test_redirect_to_facebook_oauth(): void
+    {
+        $response = $this->get('/api/v1/auth/facebook/redirect');
+
+        // Should redirect to Facebook OAuth
+        $response->assertStatus(302);
+        $this->assertStringContainsString('facebook.com', $response->headers->get('Location'));
+    }
+
+    /**
+     * Test redirect fails with unsupported provider.
+     */
+    public function test_redirect_fails_with_unsupported_provider(): void
+    {
+        $response = $this->get('/api/v1/auth/unsupported/redirect');
+
+        $response->assertStatus(404);
+    }
+
+    /**
+     * Test Google OAuth callback creates new user.
+     */
+    public function test_google_oauth_callback_creates_new_user(): void
+    {
+        $mockSocialiteUser = Mockery::mock(SocialiteUser::class);
+        $mockSocialiteUser->shouldReceive('getId')->andReturn('123456789');
+        $mockSocialiteUser->shouldReceive('getName')->andReturn('John Doe');
+        $mockSocialiteUser->shouldReceive('getEmail')->andReturn('john@example.com');
+        $mockSocialiteUser->shouldReceive('getNickname')->andReturn(null);
+
+        Socialite::shouldReceive('driver')
+            ->with('google')
+            ->andReturnSelf();
+        Socialite::shouldReceive('stateless')
+            ->andReturnSelf();
+        Socialite::shouldReceive('user')
+            ->andReturn($mockSocialiteUser);
+
+        $response = $this->get('/api/v1/auth/google/callback');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'message',
+                'user' => [
+                    'id',
+                    'name',
+                    'email',
+                ],
+                'token',
+            ])
+            ->assertJson([
+                'message' => 'Login successful',
+                'user' => [
+                    'name' => 'John Doe',
+                    'email' => 'john@example.com',
+                ],
+            ]);
+
+        // Verify user was created
+        $this->assertDatabaseHas('users', [
+            'email' => 'john@example.com',
+            'provider' => 'google',
+            'provider_id' => '123456789',
+            'social_media_login' => true,
+        ]);
+    }
+
+    /**
+     * Test Google OAuth callback logs in existing user.
+     */
+    public function test_google_oauth_callback_logs_in_existing_user(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'john@example.com',
+            'provider' => 'google',
+            'provider_id' => '123456789',
+            'social_media_login' => true,
+        ]);
+
+        $mockSocialiteUser = Mockery::mock(SocialiteUser::class);
+        $mockSocialiteUser->shouldReceive('getId')->andReturn('123456789');
+        $mockSocialiteUser->shouldReceive('getName')->andReturn('John Doe');
+        $mockSocialiteUser->shouldReceive('getEmail')->andReturn('john@example.com');
+
+        Socialite::shouldReceive('driver')
+            ->with('google')
+            ->andReturnSelf();
+        Socialite::shouldReceive('stateless')
+            ->andReturnSelf();
+        Socialite::shouldReceive('user')
+            ->andReturn($mockSocialiteUser);
+
+        $response = $this->get('/api/v1/auth/google/callback');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Login successful',
+                'user' => [
+                    'id' => $user->id,
+                    'email' => 'john@example.com',
+                ],
+            ]);
+
+        // Verify only one user exists
+        $this->assertDatabaseCount('users', 1);
+    }
+
+    /**
+     * Test Google OAuth callback links to existing email user.
+     */
+    public function test_google_oauth_callback_links_to_existing_email_user(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'john@example.com',
+            'provider' => null,
+            'provider_id' => null,
+            'social_media_login' => false,
+        ]);
+
+        $mockSocialiteUser = Mockery::mock(SocialiteUser::class);
+        $mockSocialiteUser->shouldReceive('getId')->andReturn('123456789');
+        $mockSocialiteUser->shouldReceive('getName')->andReturn('John Doe');
+        $mockSocialiteUser->shouldReceive('getEmail')->andReturn('john@example.com');
+
+        Socialite::shouldReceive('driver')
+            ->with('google')
+            ->andReturnSelf();
+        Socialite::shouldReceive('stateless')
+            ->andReturnSelf();
+        Socialite::shouldReceive('user')
+            ->andReturn($mockSocialiteUser);
+
+        $response = $this->get('/api/v1/auth/google/callback');
+
+        $response->assertStatus(200);
+
+        // Verify user was updated with provider info
+        $user->refresh();
+        $this->assertEquals('google', $user->provider);
+        $this->assertEquals('123456789', $user->provider_id);
+        $this->assertTrue($user->social_media_login);
+    }
+
+    /**
+     * Test Facebook OAuth callback creates new user.
+     */
+    public function test_facebook_oauth_callback_creates_new_user(): void
+    {
+        $mockSocialiteUser = Mockery::mock(SocialiteUser::class);
+        $mockSocialiteUser->shouldReceive('getId')->andReturn('987654321');
+        $mockSocialiteUser->shouldReceive('getName')->andReturn('Jane Doe');
+        $mockSocialiteUser->shouldReceive('getEmail')->andReturn('jane@example.com');
+        $mockSocialiteUser->shouldReceive('getNickname')->andReturn(null);
+
+        Socialite::shouldReceive('driver')
+            ->with('facebook')
+            ->andReturnSelf();
+        Socialite::shouldReceive('stateless')
+            ->andReturnSelf();
+        Socialite::shouldReceive('user')
+            ->andReturn($mockSocialiteUser);
+
+        $response = $this->get('/api/v1/auth/facebook/callback');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Login successful',
+                'user' => [
+                    'name' => 'Jane Doe',
+                    'email' => 'jane@example.com',
+                ],
+            ]);
+
+        // Verify user was created
+        $this->assertDatabaseHas('users', [
+            'email' => 'jane@example.com',
+            'provider' => 'facebook',
+            'provider_id' => '987654321',
+            'social_media_login' => true,
+        ]);
+    }
+
+    /**
+     * Test Twitter OAuth callback creates new user.
+     */
+    public function test_twitter_oauth_callback_creates_new_user(): void
+    {
+        $mockSocialiteUser = Mockery::mock(SocialiteUser::class);
+        $mockSocialiteUser->shouldReceive('getId')->andReturn('555666777');
+        $mockSocialiteUser->shouldReceive('getName')->andReturn('Twitter User');
+        $mockSocialiteUser->shouldReceive('getEmail')->andReturn(null); // Twitter may not provide email
+        $mockSocialiteUser->shouldReceive('getNickname')->andReturn('twitteruser');
+
+        Socialite::shouldReceive('driver')
+            ->with('twitter')
+            ->andReturnSelf();
+        Socialite::shouldReceive('stateless')
+            ->andReturnSelf();
+        Socialite::shouldReceive('user')
+            ->andReturn($mockSocialiteUser);
+
+        $response = $this->get('/api/v1/auth/twitter/callback');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Login successful',
+            ]);
+
+        // Verify user was created with fallback email
+        $this->assertDatabaseHas('users', [
+            'provider' => 'twitter',
+            'provider_id' => '555666777',
+            'social_media_login' => true,
+        ]);
+    }
+
+    /**
+     * Test OAuth callback handles authentication failure.
+     */
+    public function test_oauth_callback_handles_authentication_failure(): void
+    {
+        Socialite::shouldReceive('driver')
+            ->with('google')
+            ->andReturnSelf();
+        Socialite::shouldReceive('stateless')
+            ->andReturnSelf();
+        Socialite::shouldReceive('user')
+            ->andThrow(new \Exception('Invalid credentials'));
+
+        $response = $this->get('/api/v1/auth/google/callback');
+
+        $response->assertStatus(401)
+            ->assertJson([
+                'message' => 'Authentication failed.',
+            ]);
     }
 }
 
