@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\ScanFileController;
+use App\Http\Controllers\Api\V1\ScanUrlController;
 use Illuminate\Support\Facades\Route;
 
 Route::group([
@@ -28,4 +30,9 @@ Route::group([
         ->where('provider', 'google|facebook|twitter|x');
     Route::get('/auth/{provider}/callback', [AuthController::class, 'callback'])
         ->where('provider', 'google|facebook|twitter|x');
+
+    Route::middleware(['auth:sanctum', 'verified'])->group(function () {
+        Route::post('scan-url', [ScanUrlController::class, 'scan']);
+        Route::post('scan-file', [ScanFileController::class, 'scan']);
+    });
 });
