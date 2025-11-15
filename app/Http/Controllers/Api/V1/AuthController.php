@@ -7,7 +7,10 @@ use App\Http\Requests\Api\V1\ForgotPasswordRequest;
 use App\Http\Requests\Api\V1\LoginRequest;
 use App\Http\Requests\Api\V1\RegisterRequest;
 use App\Http\Requests\Api\V1\ResetPasswordRequest;
+use App\Http\Requests\Api\V1\ResendVerificationRequest;
+use App\Http\Requests\Api\V1\VerifyOtpRequest;
 use App\Services\AuthService;
+use App\Services\EmailVerificationService;
 use App\Services\PasswordResetService;
 use App\Services\SocialAuthService;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +22,8 @@ class AuthController extends Controller
     public function __construct(
         private AuthService $authService,
         private PasswordResetService $passwordResetService,
-        private SocialAuthService $socialAuthService
+        private SocialAuthService $socialAuthService,
+        private EmailVerificationService $emailVerificationService
     ) {}
 
     /**
@@ -38,12 +42,25 @@ class AuthController extends Controller
     }
 
     /**
-     * Login user and create token.
+     * Login user and send OTP (2FA).
      */
     public function login(LoginRequest $request): JsonResponse
     {
         $validated = $request->validated();
-        $result = $this->authService->login($validated['email'], $validated['password']);
+        $user = $this->authService->login($validated['email'], $validated['password']);
+
+        return response()->json([
+            'message' => 'Verification code has been sent to your email address.',
+        ]);
+    }
+
+    /**
+     * Verify OTP and generate token.
+     */
+    public function verifyOtp(VerifyOtpRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+        $result = $this->authService->verifyOtpAndLogin($validated['email'], $validated['code']);
 
         return response()->json([
             'message' => 'Login successful',
@@ -59,7 +76,7 @@ class AuthController extends Controller
     {
         /** @var \App\Models\User|null $user */
         $user = auth('sanctum')->user();
-        
+
         $this->authService->logout($user);
 
         return response()->json([
@@ -133,6 +150,56 @@ class AuthController extends Controller
             'message' => 'Login successful',
             'user' => $result['user'],
             'token' => $result['token'],
+        ]);
+    }
+
+    /**
+     * Verify user email.
+     */
+    public function verifyEmail(string $id, string $hash): JsonResponse
+    {
+        // Verify the signed URL
+        if (!request()->hasValidSignature()) {
+            return response()->json([
+                'message' => 'Invalid or expired verification link.',
+            ], 403);
+        }
+
+        $this->emailVerificationService->verifyEmail($id, $hash);
+
+        return response()->json([
+            'message' => 'Email verified successfully.',
+        ]);
+    }
+
+    /**
+     * Resend email verification notification.
+     */
+    public function resendVerificationEmail(ResendVerificationRequest $request): JsonResponse
+    {
+        $this->emailVerificationService->resendVerificationEmail($request->get('email'));
+
+        return response()->json([
+            'message' => 'Verification email has been sent.',
+        ]);
+    }
+
+    /**
+     * Get the authenticated user.
+     */
+    public function me(): JsonResponse
+    {
+        /** @var \App\Models\User|null $user */
+        $user = auth('sanctum')->user();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        return response()->json([
+            'user' => $user,
         ]);
     }
 }

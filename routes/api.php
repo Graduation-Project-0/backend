@@ -10,11 +10,18 @@ Route::group([
     // auth
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+    Route::get('/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
     
     // password reset
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+
+    // email verification
+    Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+        ->name('verification.verify');
+    Route::post('/email/verification-notification', [AuthController::class, 'resendVerificationEmail']);
 
     // social media login
     Route::get('/auth/{provider}/redirect', [AuthController::class, 'redirect'])

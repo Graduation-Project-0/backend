@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\ResetPasswordNotification;
+use App\Notifications\VerifyEmailNotification;
+use App\Notifications\OtpNotification;
+use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\Sanctum;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialiteUser;
@@ -177,10 +180,12 @@ class AuthControllerTest extends TestCase
     }
 
     /**
-     * Test user can login with valid credentials.
+     * Test user can login with valid credentials (sends OTP).
      */
     public function test_user_can_login_with_valid_credentials(): void
     {
+        Notification::fake();
+
         $user = User::factory()->create([
             'email' => 'john@example.com',
             'password' => Hash::make('Password123!'),
@@ -194,26 +199,13 @@ class AuthControllerTest extends TestCase
         $response = $this->postJson('/api/v1/login', $loginData);
 
         $response->assertStatus(200)
-            ->assertJsonStructure([
-                'message',
-                'user' => [
-                    'id',
-                    'name',
-                    'email',
-                    'created_at',
-                    'updated_at',
-                ],
-                'token',
-            ])
             ->assertJson([
-                'message' => 'Login successful',
-                'user' => [
-                    'email' => 'john@example.com',
-                ],
-            ]);
+                'message' => 'Verification code has been sent to your email address.',
+            ])
+            ->assertJsonMissing(['token', 'user']);
 
-        // Verify token was created
-        $this->assertNotNull($response->json('token'));
+        // Verify OTP notification was sent
+        Notification::assertSentTo($user, OtpNotification::class);
     }
 
     /**
@@ -985,6 +977,631 @@ class AuthControllerTest extends TestCase
         $response->assertStatus(401)
             ->assertJson([
                 'message' => 'Authentication failed.',
+            ]);
+    }
+
+    /**
+     * Test registration sends verification email.
+     */
+    public function test_registration_sends_verification_email(): void
+    {
+        Notification::fake();
+
+        $userData = [
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            'password' => 'Password123!',
+            'password_confirmation' => 'Password123!',
+        ];
+
+        $response = $this->postJson('/api/v1/register', $userData);
+
+        $response->assertStatus(201);
+
+        $user = User::where('email', 'john@example.com')->first();
+        
+        // Verify notification was sent
+        Notification::assertSentTo($user, VerifyEmailNotification::class);
+
+        // Verify email is not verified yet
+        $this->assertNull($user->email_verified_at);
+    }
+
+    /**
+     * Test user can verify email with valid signed URL.
+     */
+    public function test_user_can_verify_email_with_valid_signed_url(): void
+    {
+        $user = User::factory()->unverified()->create([
+            'email' => 'john@example.com',
+        ]);
+
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addHours(24),
+            [
+                'id' => $user->id,
+                'hash' => sha1($user->email),
+            ]
+        );
+
+        // Extract id and hash from URL
+        $parsedUrl = parse_url($verificationUrl);
+        parse_str($parsedUrl['query'] ?? '', $queryParams);
+        $pathParts = explode('/', trim($parsedUrl['path'], '/'));
+
+        $response = $this->get($verificationUrl);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Email verified successfully.',
+            ]);
+
+        // Verify email was marked as verified
+        $user->refresh();
+        $this->assertNotNull($user->email_verified_at);
+    }
+
+    /**
+     * Test email verification fails with invalid signature.
+     */
+    public function test_email_verification_fails_with_invalid_signature(): void
+    {
+        $user = User::factory()->unverified()->create([
+            'email' => 'john@example.com',
+        ]);
+
+        $invalidUrl = '/api/v1/email/verify/' . $user->id . '/' . sha1($user->email) . '?expires=' . time() . '&signature=invalid';
+
+        $response = $this->get($invalidUrl);
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'message' => 'Invalid or expired verification link.',
+            ]);
+
+        // Verify email was not verified
+        $user->refresh();
+        $this->assertNull($user->email_verified_at);
+    }
+
+    /**
+     * Test email verification fails with wrong hash.
+     * Note: Changing the hash invalidates the signature, so it fails at signature validation.
+     */
+    public function test_email_verification_fails_with_wrong_hash(): void
+    {
+        $user = User::factory()->unverified()->create([
+            'email' => 'john@example.com',
+        ]);
+
+        // Create valid signed URL but manually change the hash in the path
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addHours(24),
+            [
+                'id' => $user->id,
+                'hash' => sha1($user->email), // Correct hash for signature
+            ]
+        );
+
+        // Replace the hash in the URL with wrong hash (this invalidates the signature)
+        $wrongHashUrl = str_replace('/' . sha1($user->email), '/wrong-hash', $verificationUrl);
+
+        $response = $this->get($wrongHashUrl);
+
+        // Signature validation fails first when hash is tampered with
+        $response->assertStatus(403)
+            ->assertJson([
+                'message' => 'Invalid or expired verification link.',
+            ]);
+    }
+
+    /**
+     * Test email verification fails when already verified.
+     */
+    public function test_email_verification_fails_when_already_verified(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'john@example.com',
+            'email_verified_at' => now(),
+        ]);
+
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addHours(24),
+            [
+                'id' => $user->id,
+                'hash' => sha1($user->email),
+            ]
+        );
+
+        $response = $this->get($verificationUrl);
+
+        // The validation exception might cause a redirect in some cases
+        // Check that the error message is present
+        if ($response->status() === 302) {
+            $response->assertRedirect();
+        } else {
+            $response->assertStatus(422)
+                ->assertJsonValidationErrors(['email']);
+        }
+    }
+
+    /**
+     * Test user can resend verification email.
+     */
+    public function test_user_can_resend_verification_email(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->unverified()->create([
+            'email' => 'john@example.com',
+        ]);
+
+        $response = $this->postJson('/api/v1/email/verification-notification', [
+            'email' => 'john@example.com',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Verification email has been sent.',
+            ]);
+
+        // Verify notification was sent
+        Notification::assertSentTo($user, VerifyEmailNotification::class);
+    }
+
+    /**
+     * Test resend verification fails without email.
+     */
+    public function test_resend_verification_fails_without_email(): void
+    {
+        $response = $this->postJson('/api/v1/email/verification-notification', []);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
+    /**
+     * Test resend verification fails with invalid email.
+     */
+    public function test_resend_verification_fails_with_invalid_email(): void
+    {
+        $response = $this->postJson('/api/v1/email/verification-notification', [
+            'email' => 'invalid-email',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
+    /**
+     * Test resend verification fails with non-existent email.
+     */
+    public function test_resend_verification_fails_with_non_existent_email(): void
+    {
+        $response = $this->postJson('/api/v1/email/verification-notification', [
+            'email' => 'nonexistent@example.com',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
+    /**
+     * Test resend verification fails when email already verified.
+     */
+    public function test_resend_verification_fails_when_email_already_verified(): void
+    {
+        User::factory()->create([
+            'email' => 'john@example.com',
+            'email_verified_at' => now(),
+        ]);
+
+        $response = $this->postJson('/api/v1/email/verification-notification', [
+            'email' => 'john@example.com',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
+    /**
+     * Test email verification link expires after 24 hours.
+     */
+    public function test_email_verification_link_expires_after_24_hours(): void
+    {
+        $user = User::factory()->unverified()->create([
+            'email' => 'john@example.com',
+        ]);
+
+        // Create a URL that expired 1 hour ago (25 hours total)
+        $expiredUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->subHour(), // Expired
+            [
+                'id' => $user->id,
+                'hash' => sha1($user->email),
+            ]
+        );
+
+        $response = $this->get($expiredUrl);
+
+        $response->assertStatus(403)
+            ->assertJson([
+                'message' => 'Invalid or expired verification link.',
+            ]);
+    }
+
+    /**
+     * Test authenticated user can get their information.
+     */
+    public function test_authenticated_user_can_get_their_information(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+        ]);
+
+        $token = $user->createToken('auth-token')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->getJson('/api/v1/me');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'user' => [
+                    'id',
+                    'name',
+                    'email',
+                    'email_verified_at',
+                    'created_at',
+                    'updated_at',
+                ],
+            ])
+            ->assertJson([
+                'user' => [
+                    'id' => $user->id,
+                    'name' => 'John Doe',
+                    'email' => 'john@example.com',
+                ],
+            ]);
+
+        // Verify password is not in response
+        $responseData = $response->json();
+        $this->assertArrayNotHasKey('password', $responseData['user']);
+    }
+
+    /**
+     * Test unauthenticated user cannot access me endpoint.
+     */
+    public function test_unauthenticated_user_cannot_access_me_endpoint(): void
+    {
+        $response = $this->getJson('/api/v1/me');
+
+        $response->assertStatus(401);
+    }
+
+    /**
+     * Test me endpoint fails with invalid token.
+     */
+    public function test_me_endpoint_fails_with_invalid_token(): void
+    {
+        $response = $this->withHeader('Authorization', 'Bearer invalid-token')
+            ->getJson('/api/v1/me');
+
+        $response->assertStatus(401);
+    }
+
+    /**
+     * Test me endpoint returns user with social media login info.
+     */
+    public function test_me_endpoint_returns_user_with_social_media_info(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            'provider' => 'google',
+            'provider_id' => '123456789',
+            'social_media_login' => true,
+        ]);
+
+        $token = $user->createToken('auth-token')->plainTextToken;
+
+        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->getJson('/api/v1/me');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'user' => [
+                    'provider' => 'google',
+                    'provider_id' => '123456789',
+                    'social_media_login' => true,
+                ],
+            ]);
+    }
+
+    /**
+     * Test login sends OTP email instead of token.
+     */
+    public function test_login_sends_otp_email_instead_of_token(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create([
+            'email' => 'john@example.com',
+            'password' => Hash::make('Password123!'),
+        ]);
+
+        $response = $this->postJson('/api/v1/login', [
+            'email' => 'john@example.com',
+            'password' => 'Password123!',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Verification code has been sent to your email address.',
+            ])
+            ->assertJsonMissing(['token']);
+
+        // Verify OTP notification was sent
+        Notification::assertSentTo($user, OtpNotification::class);
+
+        // Verify OTP was stored in database
+        $this->assertDatabaseHas('otps', [
+            'email' => 'john@example.com',
+            'used' => false,
+        ]);
+    }
+
+    /**
+     * Test login fails with incorrect credentials no OTP sent.
+     */
+    public function test_login_fails_with_incorrect_credentials_no_otp_sent(): void
+    {
+        Notification::fake();
+
+        User::factory()->create([
+            'email' => 'john@example.com',
+            'password' => Hash::make('Password123!'),
+        ]);
+
+        $response = $this->postJson('/api/v1/login', [
+            'email' => 'john@example.com',
+            'password' => 'WrongPassword123!',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+
+        // Verify no OTP notification was sent
+        Notification::assertNothingSent();
+    }
+
+    /**
+     * Test verify OTP fails without email.
+     */
+    public function test_verify_otp_fails_without_email(): void
+    {
+        $response = $this->postJson('/api/v1/verify-otp', [
+            'code' => '123456',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
+    /**
+     * Test verify OTP fails without code.
+     */
+    public function test_verify_otp_fails_without_code(): void
+    {
+        User::factory()->create([
+            'email' => 'john@example.com',
+        ]);
+
+        $response = $this->postJson('/api/v1/verify-otp', [
+            'email' => 'john@example.com',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['code']);
+    }
+
+    /**
+     * Test verify OTP fails with invalid code length.
+     */
+    public function test_verify_otp_fails_with_invalid_code_length(): void
+    {
+        User::factory()->create([
+            'email' => 'john@example.com',
+        ]);
+
+        $response = $this->postJson('/api/v1/verify-otp', [
+            'email' => 'john@example.com',
+            'code' => '12345', // 5 digits instead of 6
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['code']);
+    }
+
+    /**
+     * Test verify OTP fails with invalid code.
+     */
+    public function test_verify_otp_fails_with_invalid_code(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'john@example.com',
+            'password' => Hash::make('Password123!'),
+        ]);
+
+        // Login to generate OTP
+        $this->postJson('/api/v1/login', [
+            'email' => 'john@example.com',
+            'password' => 'Password123!',
+        ]);
+
+        // Try to verify with wrong code
+        $response = $this->postJson('/api/v1/verify-otp', [
+            'email' => 'john@example.com',
+            'code' => '000000', // Wrong code
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['code']);
+    }
+
+    /**
+     * Test verify OTP fails with expired code.
+     */
+    public function test_verify_otp_fails_with_expired_code(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'john@example.com',
+        ]);
+
+        // Create an expired OTP
+        $expiredCode = '123456';
+        DB::table('otps')->insert([
+            'email' => 'john@example.com',
+            'code' => Hash::make($expiredCode),
+            'expires_at' => now()->subMinutes(11), // Expired (10 minutes expiry)
+            'used' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->postJson('/api/v1/verify-otp', [
+            'email' => 'john@example.com',
+            'code' => $expiredCode,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['code']);
+    }
+
+    /**
+     * Test verify OTP fails with non-existent email.
+     */
+    public function test_verify_otp_fails_with_non_existent_email(): void
+    {
+        $response = $this->postJson('/api/v1/verify-otp', [
+            'email' => 'nonexistent@example.com',
+            'code' => '123456',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
+    /**
+     * Test OTP can only be used once.
+     */
+    public function test_otp_can_only_be_used_once(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'john@example.com',
+            'password' => Hash::make('Password123!'),
+        ]);
+
+        // Create an OTP manually for testing
+        $code = '123456';
+        DB::table('otps')->insert([
+            'email' => 'john@example.com',
+            'code' => Hash::make($code),
+            'expires_at' => now()->addMinutes(10),
+            'used' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // First verification should succeed
+        $response = $this->postJson('/api/v1/verify-otp', [
+            'email' => 'john@example.com',
+            'code' => $code,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'message',
+                'user',
+                'token',
+            ]);
+
+        // Second verification with same code should fail
+        $response = $this->postJson('/api/v1/verify-otp', [
+            'email' => 'john@example.com',
+            'code' => $code,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['code']);
+    }
+
+    /**
+     * Test complete 2FA login flow.
+     */
+    public function test_complete_2fa_login_flow(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create([
+            'email' => 'john@example.com',
+            'password' => Hash::make('Password123!'),
+        ]);
+
+        // Step 1: Login (should send OTP)
+        $loginResponse = $this->postJson('/api/v1/login', [
+            'email' => 'john@example.com',
+            'password' => 'Password123!',
+        ]);
+
+        $loginResponse->assertStatus(200)
+            ->assertJson([
+                'message' => 'Verification code has been sent to your email address.',
+            ]);
+
+        Notification::assertSentTo($user, OtpNotification::class);
+
+        // Step 2: Get OTP from notification (in real scenario, user gets it from email)
+        $notification = Notification::sent($user, OtpNotification::class)->first();
+        $otpCode = $notification->code;
+
+        // Step 3: Verify OTP and get token
+        $verifyResponse = $this->postJson('/api/v1/verify-otp', [
+            'email' => 'john@example.com',
+            'code' => $otpCode,
+        ]);
+
+        $verifyResponse->assertStatus(200)
+            ->assertJsonStructure([
+                'message',
+                'user' => [
+                    'id',
+                    'name',
+                    'email',
+                ],
+                'token',
+            ])
+            ->assertJson([
+                'message' => 'Login successful',
+                'user' => [
+                    'email' => 'john@example.com',
+                ],
+            ]);
+
+        // Verify token works
+        $token = $verifyResponse->json('token');
+        $meResponse = $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->getJson('/api/v1/me');
+
+        $meResponse->assertStatus(200)
+            ->assertJson([
+                'user' => [
+                    'email' => 'john@example.com',
+                ],
             ]);
     }
 }

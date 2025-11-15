@@ -10,6 +10,11 @@ class AuthService
 {
     private const TOKEN_NAME = 'auth-token';
 
+    public function __construct(
+        private EmailVerificationService $emailVerificationService,
+        private OtpService $otpService
+    ) {}
+
     /**
      * Register a new user.
      */
@@ -21,6 +26,9 @@ class AuthService
             'password' => Hash::make($data['password']),
         ]);
 
+        // Send email verification notification
+        $this->emailVerificationService->sendVerificationEmail($user);
+
         $token = $user->createToken(self::TOKEN_NAME)->plainTextToken;
 
         return [
@@ -30,9 +38,9 @@ class AuthService
     }
 
     /**
-     * Authenticate user and generate token.
+     * Authenticate user credentials and send OTP (2FA).
      */
-    public function login(string $email, string $password): array
+    public function login(string $email, string $password): User
     {
         $user = User::where('email', $email)->first();
 
@@ -41,6 +49,19 @@ class AuthService
                 'email' => ['The provided credentials are incorrect.'],
             ]);
         }
+
+        // Send OTP instead of generating token
+        $this->otpService->generateAndSendOtp($user);
+
+        return $user;
+    }
+
+    /**
+     * Verify OTP and generate token.
+     */
+    public function verifyOtpAndLogin(string $email, string $code): array
+    {
+        $user = $this->otpService->verifyOtp($email, $code);
 
         $token = $user->createToken(self::TOKEN_NAME)->plainTextToken;
 
