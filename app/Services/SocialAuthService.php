@@ -15,6 +15,7 @@ class SocialAuthService
     public function getDriver(string $provider): string
     {
         $this->validateProvider($provider);
+
         return $provider === 'x' ? 'twitter' : $provider;
     }
 
@@ -24,6 +25,7 @@ class SocialAuthService
     public function getProviderName(string $provider): string
     {
         $this->validateProvider($provider);
+
         return $provider === 'x' ? 'twitter' : $provider;
     }
 
@@ -32,7 +34,7 @@ class SocialAuthService
      */
     public function validateProvider(string $provider): void
     {
-        if (!in_array($provider, self::SUPPORTED_PROVIDERS)) {
+        if (! in_array($provider, self::SUPPORTED_PROVIDERS)) {
             abort(404, 'Provider not supported');
         }
     }
@@ -70,7 +72,7 @@ class SocialAuthService
         // Create new user
         return User::create([
             'name' => $socialUser->getName() ?? $socialUser->getNickname() ?? 'User',
-            'email' => $socialUser->getEmail() ?? $socialUser->getId() . '@' . $provider . '.local',
+            'email' => $socialUser->getEmail() ?? $socialUser->getId().'@'.$provider.'.local',
             'password' => null,
             'provider' => $provider,
             'provider_id' => $socialUser->getId(),
@@ -92,4 +94,3 @@ class SocialAuthService
         ];
     }
 }
-

@@ -38,30 +38,30 @@ return [
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
-        'redirect' => env('APP_URL') . '/api/v1/auth/google/callback',
+        'redirect' => env('APP_URL').'/api/v1/auth/google/callback',
     ],
 
     'twitter' => [
         'client_id' => env('TWITTER_CLIENT_ID'),
         'client_secret' => env('TWITTER_CLIENT_SECRET'),
-        'redirect' => env('APP_URL') . '/api/v1/auth/twitter/callback',
+        'redirect' => env('APP_URL').'/api/v1/auth/twitter/callback',
     ],
 
     'twitter' => [
         'client_id' => env('TWITTER_CLIENT_ID'),
         'client_secret' => env('TWITTER_CLIENT_SECRET'),
-        'redirect' => env('APP_URL') . '/api/v1/auth/twitter/callback',
+        'redirect' => env('APP_URL').'/api/v1/auth/twitter/callback',
     ],
 
     'facebook' => [
         'client_id' => env('FACEBOOK_CLIENT_ID'),
         'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
-        'redirect' => env('APP_URL') . '/api/v1/auth/facebook/callback',
+        'redirect' => env('APP_URL').'/api/v1/auth/facebook/callback',
     ],
 
     'remote_server' => [
         'url_scanning_url' => 'http://5.182.33.91:3000/scan',
         'file_scanning_url' => 'http://5.182.33.91:5000/mb/upload',
-    ]
+    ],
 
 ];

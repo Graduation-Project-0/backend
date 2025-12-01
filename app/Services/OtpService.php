@@ -11,6 +11,7 @@ use Illuminate\Validation\ValidationException;
 class OtpService
 {
     private const OTP_EXPIRY_MINUTES = 10;
+
     private const OTP_LENGTH = 6;
 
     /**
@@ -57,14 +58,14 @@ class OtpService
             ->orderBy('created_at', 'desc')
             ->first();
 
-        if (!$otp) {
+        if (! $otp) {
             throw ValidationException::withMessages([
                 'code' => ['Invalid or expired OTP code.'],
             ]);
         }
 
         // Verify the code
-        if (!Hash::check($code, $otp->code)) {
+        if (! Hash::check($code, $otp->code)) {
             throw ValidationException::withMessages([
                 'code' => ['Invalid OTP code.'],
             ]);
@@ -95,4 +96,3 @@ class OtpService
             ->delete();
     }
 }
-

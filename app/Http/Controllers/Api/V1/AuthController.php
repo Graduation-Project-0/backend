@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\ForgotPasswordRequest;
 use App\Http\Requests\Api\V1\LoginRequest;
 use App\Http\Requests\Api\V1\RegisterRequest;
-use App\Http\Requests\Api\V1\ResetPasswordRequest;
 use App\Http\Requests\Api\V1\ResendVerificationRequest;
+use App\Http\Requests\Api\V1\ResetPasswordRequest;
 use App\Http\Requests\Api\V1\VerifyOtpRequest;
 use App\Services\AuthService;
 use App\Services\EmailVerificationService;
@@ -159,7 +159,7 @@ class AuthController extends Controller
     public function verifyEmail(string $id, string $hash): JsonResponse
     {
         // Verify the signed URL
-        if (!request()->hasValidSignature()) {
+        if (! request()->hasValidSignature()) {
             return response()->json([
                 'message' => 'Invalid or expired verification link.',
             ], 403);
@@ -192,7 +192,7 @@ class AuthController extends Controller
         /** @var \App\Models\User|null $user */
         $user = auth('sanctum')->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'message' => 'Unauthenticated.',
             ], 401);

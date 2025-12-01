@@ -18,7 +18,7 @@ class EmailVerificationService
             return;
         }
 
-        $user->notify(new VerifyEmailNotification());
+        $user->notify(new VerifyEmailNotification);
     }
 
     /**
@@ -35,7 +35,7 @@ class EmailVerificationService
         }
 
         // Verify the hash matches
-        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+        if (! hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
             throw ValidationException::withMessages([
                 'email' => ['Invalid verification link.'],
             ]);
@@ -60,4 +60,3 @@ class EmailVerificationService
         $this->sendVerificationEmail($user);
     }
 }
-

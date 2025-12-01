@@ -3,15 +3,14 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Models\User;
+use App\Notifications\OtpNotification;
+use App\Notifications\ResetPasswordNotification;
+use App\Notifications\VerifyEmailNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
-use App\Notifications\ResetPasswordNotification;
-use App\Notifications\VerifyEmailNotification;
-use App\Notifications\OtpNotification;
 use Illuminate\Support\Facades\URL;
-use Laravel\Sanctum\Sanctum;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialiteUser;
 use Mockery;
@@ -304,7 +303,7 @@ class AuthControllerTest extends TestCase
         $user = User::factory()->create();
         $token = $user->createToken('auth-token')->plainTextToken;
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
             ->postJson('/api/v1/logout');
 
         $response->assertStatus(200)
@@ -353,7 +352,7 @@ class AuthControllerTest extends TestCase
         $this->assertCount(2, $user->tokens);
 
         // Logout with first token
-        $response = $this->withHeader('Authorization', 'Bearer ' . $token1)
+        $response = $this->withHeader('Authorization', 'Bearer '.$token1)
             ->postJson('/api/v1/logout');
 
         $response->assertStatus(200);
@@ -365,7 +364,7 @@ class AuthControllerTest extends TestCase
         $this->assertCount(1, $user->tokens);
 
         // Verify the remaining token is the second one (by checking if token2 still works)
-        $response = $this->withHeader('Authorization', 'Bearer ' . $token2)
+        $response = $this->withHeader('Authorization', 'Bearer '.$token2)
             ->postJson('/api/v1/logout');
 
         $response->assertStatus(200);
@@ -680,7 +679,7 @@ class AuthControllerTest extends TestCase
         $this->assertCount(0, $user->tokens);
 
         // Verify tokens no longer work
-        $this->withHeader('Authorization', 'Bearer ' . $token1)
+        $this->withHeader('Authorization', 'Bearer '.$token1)
             ->postJson('/api/v1/logout')
             ->assertStatus(401);
     }
@@ -999,7 +998,7 @@ class AuthControllerTest extends TestCase
         $response->assertStatus(201);
 
         $user = User::where('email', 'john@example.com')->first();
-        
+
         // Verify notification was sent
         Notification::assertSentTo($user, VerifyEmailNotification::class);
 
@@ -1051,7 +1050,7 @@ class AuthControllerTest extends TestCase
             'email' => 'john@example.com',
         ]);
 
-        $invalidUrl = '/api/v1/email/verify/' . $user->id . '/' . sha1($user->email) . '?expires=' . time() . '&signature=invalid';
+        $invalidUrl = '/api/v1/email/verify/'.$user->id.'/'.sha1($user->email).'?expires='.time().'&signature=invalid';
 
         $response = $this->get($invalidUrl);
 
@@ -1086,7 +1085,7 @@ class AuthControllerTest extends TestCase
         );
 
         // Replace the hash in the URL with wrong hash (this invalidates the signature)
-        $wrongHashUrl = str_replace('/' . sha1($user->email), '/wrong-hash', $verificationUrl);
+        $wrongHashUrl = str_replace('/'.sha1($user->email), '/wrong-hash', $verificationUrl);
 
         $response = $this->get($wrongHashUrl);
 
@@ -1246,7 +1245,7 @@ class AuthControllerTest extends TestCase
 
         $token = $user->createToken('auth-token')->plainTextToken;
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
             ->getJson('/api/v1/me');
 
         $response->assertStatus(200)
@@ -1309,7 +1308,7 @@ class AuthControllerTest extends TestCase
 
         $token = $user->createToken('auth-token')->plainTextToken;
 
-        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
             ->getJson('/api/v1/me');
 
         $response->assertStatus(200)
@@ -1594,7 +1593,7 @@ class AuthControllerTest extends TestCase
 
         // Verify token works
         $token = $verifyResponse->json('token');
-        $meResponse = $this->withHeader('Authorization', 'Bearer ' . $token)
+        $meResponse = $this->withHeader('Authorization', 'Bearer '.$token)
             ->getJson('/api/v1/me');
 
         $meResponse->assertStatus(200)
@@ -1605,4 +1604,3 @@ class AuthControllerTest extends TestCase
             ]);
     }
 }
-

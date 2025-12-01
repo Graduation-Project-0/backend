@@ -3,7 +3,6 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -44,7 +43,7 @@ class OtpNotification extends Notification
         return (new MailMessage)
             ->subject('Your Login Verification Code')
             ->line('Your verification code is:')
-            ->line('**' . $this->code . '**')
+            ->line('**'.$this->code.'**')
             ->line('This code will expire in 10 minutes.')
             ->line('If you did not attempt to login, please ignore this email.');
     }

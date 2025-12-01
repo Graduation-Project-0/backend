@@ -46,4 +46,3 @@ class ResetPasswordRequest extends FormRequest
         ];
     }
 }
-

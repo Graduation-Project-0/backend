@@ -44,13 +44,13 @@ class PasswordResetService
             ->where('email', $email)
             ->first();
 
-        if (!$passwordReset) {
+        if (! $passwordReset) {
             throw ValidationException::withMessages([
                 'token' => ['Invalid or expired password reset token.'],
             ]);
         }
 
-        if (!Hash::check($token, $passwordReset->token)) {
+        if (! Hash::check($token, $passwordReset->token)) {
             throw ValidationException::withMessages([
                 'token' => ['Invalid or expired password reset token.'],
             ]);
@@ -82,4 +82,3 @@ class PasswordResetService
             ->delete();
     }
 }
-

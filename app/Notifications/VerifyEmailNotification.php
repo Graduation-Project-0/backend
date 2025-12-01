@@ -3,7 +3,6 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
@@ -56,7 +55,7 @@ class VerifyEmailNotification extends Notification
         $parsedUrl = parse_url($signedUrl);
         parse_str($parsedUrl['query'] ?? '', $queryParams);
 
-        return $frontendUrl . '/verify-email?' . http_build_query([
+        return $frontendUrl.'/verify-email?'.http_build_query([
             'id' => $notifiable->getKey(),
             'hash' => sha1($notifiable->getEmailForVerification()),
             'expires' => $queryParams['expires'] ?? '',
