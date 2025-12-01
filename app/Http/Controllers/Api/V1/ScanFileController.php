@@ -19,7 +19,7 @@ class ScanFileController extends Controller
 
         return response()->json([
             'status' => true,
-            'data' => $response->body()
+            'data' => $response->json()
         ]);
     }
 }
