@@ -61,7 +61,7 @@ return [
 
     'remote_server' => [
         'url_scanning_url' => 'http://5.182.33.91:3000/scan',
-        'file_scanning_url' => 'http://5.182.33.91:5000/mb-upload',
+        'file_scanning_url' => 'http://5.182.33.91:5000/mb/upload',
     ]
 
 ];

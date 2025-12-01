@@ -13,13 +13,13 @@ class ScanFileController extends Controller
     {
         $response = Http::attach(
             'file',
-            file_get_contents($request->file('file')->getRealPath()),
+            file_get_contents($request->file('file')),
             $request->file('file')->getClientOriginalName()
         )->post(config('services.remote_server.file_scanning_url'));
 
         return response()->json([
             'status' => true,
-            'data' => $response->json()
+            'data' => $response->body()
         ]);
     }
 }
