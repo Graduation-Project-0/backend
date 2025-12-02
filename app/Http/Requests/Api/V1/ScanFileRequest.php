@@ -22,7 +22,7 @@ class ScanFileRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => 'required|file|mimes:pplication/vnd.microsoft.portable-executable',
+            'file' => 'required|file',
         ];
     }
 }

@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Http;
 
 class ScanFileController extends Controller
 {
-    public function scan(ScanFileRequest $request)
+    public function advancedScanFile(ScanFileRequest $request)
     {
         $response = Http::attach(
             'file',

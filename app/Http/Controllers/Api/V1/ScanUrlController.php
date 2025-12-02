@@ -8,9 +8,21 @@ use Illuminate\Support\Facades\Http;
 
 class ScanUrlController extends Controller
 {
-    public function scan(ScanUrlRequest $request)
+    public function advancedScanUrl(ScanUrlRequest $request)
     {
         $response = Http::post(config('services.remote_server.url_scanning_url'), [
+            'url' => $request->get('url'),
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'data' => $response->json(),
+        ]);
+    }
+
+    public function standardScanUrl(ScanUrlRequest $request)
+    {
+        $response = Http::post(config('services.remote_server.url_scanning_url_standard'), [
             'url' => $request->get('url'),
         ]);
 

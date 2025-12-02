@@ -62,6 +62,7 @@ return [
     'remote_server' => [
         'url_scanning_url' => 'http://5.182.33.91:3000/scan',
         'file_scanning_url' => 'http://5.182.33.91:5000/mb/upload',
+        'url_scanning_url_standard' => 'https://postlachrymal-tabatha-nondestructively.ngrok-free.dev/predict',
     ],
 
 ];

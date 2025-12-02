@@ -32,7 +32,10 @@ Route::group([
         ->where('provider', 'google|facebook|twitter|x');
 
     Route::middleware(['auth:sanctum', 'verified'])->group(function () {
-        Route::post('scan-url', [ScanUrlController::class, 'scan']);
-        Route::post('scan-file', [ScanFileController::class, 'scan']);
+        Route::post('advanced/scan-url', [ScanUrlController::class, 'advancedScanUrl']);
+        Route::post('advanced/scan-file', [ScanFileController::class, 'advancedScanFile']);
+
+        Route::post('standard/scan-url', [ScanUrlController::class, 'standardScanUrl']);
+        Route::post('standard/scan-file', [ScanFileController::class, 'standardScanFile']);
     });
 });

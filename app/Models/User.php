@@ -50,4 +50,24 @@ class User extends Authenticatable implements MustVerifyEmail
             'social_media_login' => 'boolean',
         ];
     }
+
+    /**
+     * Get the subscriptions for the user.
+     */
+    public function subscriptions()
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    /**
+     * Get the active subscription for the user.
+     */
+    public function activeSubscription()
+    {
+        return $this->hasOne(Subscription::class)->where('status', Subscription::STATUS_ACTIVE)
+            ->where(function ($query) {
+                $query->whereNull('ends_at')
+                      ->orWhere('ends_at', '>', now());
+            });
+    }
 }
