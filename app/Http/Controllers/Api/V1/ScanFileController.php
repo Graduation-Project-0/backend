@@ -21,4 +21,18 @@ class ScanFileController extends Controller
             'data' => $response->json(),
         ]);
     }
+
+    public function standardScanFile(ScanFileRequest $request)
+    {
+        $response = Http::attach(
+            'file',
+            file_get_contents($request->file('file')),
+            $request->file('file')->getClientOriginalName()
+        )->post(config('services.remote_server.file_scanning_url_standard'));
+
+        return response()->json([
+            'status' => true,
+            'data' => $response->json(),
+        ]);
+    }
 }

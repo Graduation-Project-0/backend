@@ -63,6 +63,7 @@ return [
         'url_scanning_url' => env('URL_SCANNING_URL', 'http://5.182.33.91:3000/scan'),
         'file_scanning_url' => env('FILE_SCANNING_URL', 'http://5.182.33.91:5000/mb/upload'),
         'url_scanning_url_standard' => env('URL_SCANNING_URL_STANDARD', 'https://postlachrymal-tabatha-nondestructively.ngrok-free.dev/predict'),
+        'file_scanning_url_standard' => env('FILE_SCANNING_URL_STANDARD', 'https://postlachrymal-tabatha-nondestructively.ngrok-free.dev/predict'),
     ],
 
 ];
