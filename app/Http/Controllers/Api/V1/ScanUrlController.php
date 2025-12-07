@@ -26,6 +26,8 @@ class ScanUrlController extends Controller
             'url' => $request->get('url'),
         ]);
 
+        info($request->get('url'));
+
         return response()->json([
             'status' => true,
             'data' => $response->json(),
