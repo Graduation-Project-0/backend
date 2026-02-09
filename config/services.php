@@ -60,11 +60,11 @@ return [
     ],
 
     'remote_server' => [
-        'url_scanning_url' => env('URL_SCANNING_URL', 'http://5.182.33.91:3000/scan'),
-        'file_scanning_url' => env('FILE_SCANNING_URL', 'http://5.182.33.91:5000/mb/upload'),
-        'url_scanning_url_standard' => env('URL_SCANNING_URL_STANDARD', 'https://postlachrymal-tabatha-nondestructively.ngrok-free.dev/predict'),
-        'file_scanning_url_standard' => env('FILE_SCANNING_URL_STANDARD', 'https://postlachrymal-tabatha-nondestructively.ngrok-free.dev/predict'),
-        'email_scanning_url_standard' => env('EMAIL_SCANNING_URL_STANDARD', 'https://postlachrymal-tabatha-nondestructively.ngrok-free.dev/predict'),
+        'url_scanning_url' => env('URL_SCANNING_URL', 'http://0.0.0.0:8002/scan'),
+        'file_scanning_url' => env('FILE_SCANNING_URL', 'http://0.0.0.0:8001/mb/upload'),
+        'url_scanning_url_standard' => env('URL_SCANNING_URL_STANDARD', 'http://0.0.0.0:8005/predict'),
+        'file_scanning_url_standard' => env('FILE_SCANNING_URL_STANDARD', 'http://0.0.0.0:8003/predict'),
+        'email_scanning_url_standard' => env('EMAIL_SCANNING_URL_STANDARD', 'http://0.0.0.0:8004/predict'),
     ],
 
 ];

@@ -12,7 +12,7 @@ class EmailScanController extends Controller
     public function standardScanEmail(EmailRequest $request)
     {
         $response = Http::attach(
-            'email',
+            'file',
             file_get_contents($request->file('email')),
             $request->file('email')->getClientOriginalName()
         )->post(config('services.remote_server.email_scanning_url_standard'));
