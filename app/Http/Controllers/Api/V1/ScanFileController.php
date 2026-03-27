@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\ScanFileRequest;
+use App\Support\Services\HistoryService;
 use Illuminate\Support\Facades\Http;
 
 class ScanFileController extends Controller
@@ -15,6 +16,8 @@ class ScanFileController extends Controller
             file_get_contents($request->file('file')),
             $request->file('file')->getClientOriginalName()
         )->post(config('services.remote_server.file_scanning_url'));
+
+        HistoryService::createHistory($request->user(), 'file', null, $response->json());
 
         return response()->json([
             'status' => true,
@@ -29,6 +32,8 @@ class ScanFileController extends Controller
             file_get_contents($request->file('file')),
             $request->file('file')->getClientOriginalName()
         )->post(config('services.remote_server.file_scanning_url_standard'));
+
+        HistoryService::createHistory($request->user(), 'file', null, $response->json());
 
         return response()->json([
             'status' => true,

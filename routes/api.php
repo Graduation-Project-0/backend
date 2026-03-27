@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\EmailScanController;
 use App\Http\Controllers\Api\V1\ScanFileController;
 use App\Http\Controllers\Api\V1\ScanUrlController;
+use App\Http\Controllers\Api\V1\HistoryController;
 use Illuminate\Support\Facades\Route;
 
 Route::group([
@@ -39,5 +40,7 @@ Route::group([
         Route::post('standard/scan-url', [ScanUrlController::class, 'standardScanUrl']);
         Route::post('standard/scan-file', [ScanFileController::class, 'standardScanFile']);
         Route::post('standard/scan-email', [EmailScanController::class, 'standardScanEmail']);
+
+        Route::get('history', [HistoryController::class, 'index']);
     });
 });

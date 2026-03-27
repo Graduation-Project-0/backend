@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\ScanUrlRequest;
+use App\Support\Services\HistoryService;
 use Illuminate\Support\Facades\Http;
 
 class ScanUrlController extends Controller
@@ -13,6 +14,8 @@ class ScanUrlController extends Controller
         $response = Http::post(config('services.remote_server.url_scanning_url'), [
             'url' => $request->get('url'),
         ]);
+
+        HistoryService::createHistory($request->user(), 'url', null, $response->json());
 
         return response()->json([
             'status' => true,
@@ -26,7 +29,7 @@ class ScanUrlController extends Controller
             'url' => $request->get('url'),
         ]);
 
-        info($request->get('url'));
+        HistoryService::createHistory($request->user(), 'url', null, $response->json());
 
         return response()->json([
             'status' => true,

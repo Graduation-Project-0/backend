@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -69,5 +70,10 @@ class User extends Authenticatable implements MustVerifyEmail
                 $query->whereNull('ends_at')
                       ->orWhere('ends_at', '>', now());
             });
+    }
+
+    public function history(): HasMany
+    {
+        return $this->hasMany(History::class);
     }
 }
