@@ -8,27 +8,31 @@ use Illuminate\Database\Eloquent\Collection;
 
 class HistoryService
 {
-    public static function createHistory(User|int $user, string $scanType, string|null $result, array $data): History
+    public static function createHistory(User|int $user, string $scanType, ?string $result, ?array $data): History|null
     {
-        return $user->history()
-            ->create([
-                'scan_type' => $scanType,
-                'result' => $result,
-                'data' => $data,
-            ]);
+        if ($data) {
+            return $user->history()
+                ->create([
+                    'scan_type' => $scanType,
+                    'result' => $result,
+                    'data' => $data,
+                ]);
+        }
+
+        return null;
     }
 
     public static function getAllUserHistory(User|int $user): Collection|array
     {
         return [
-            'file_analysis' => $this->getFileAnalysis($user),
-            'url_analysis' => $this->getUrlAnalysis($user),
-            'email_analysis' => $this->getEmailAnalysis($user),
-            'recent_scans' => $this->getRecentScans($user),
+            'file_analysis' => self::getFileAnalysis($user),
+            'url_analysis' => self::getUrlAnalysis($user),
+            'email_analysis' => self::getEmailAnalysis($user),
+            'recent_scans' => self::getRecentScans($user),
         ];
     }
 
-    private function getFileAnalysis(User|int $user): array
+    private static function getFileAnalysis(User|int $user): array
     {
         $history = $user->history()->where('scan_type', 'file')->get();
 
@@ -40,7 +44,7 @@ class HistoryService
         ];
     }
 
-    private function getUrlAnalysis(User|int $user): array
+    private static function getUrlAnalysis(User|int $user): array
     {
         $history = $user->history()->where('scan_type', 'url')->get();
 
@@ -52,7 +56,7 @@ class HistoryService
         ];
     }
 
-    private function getEmailAnalysis(User|int $user): array
+    private static function getEmailAnalysis(User|int $user): array
     {
         $history = $user->history()->where('scan_type', 'email')->get();
 
@@ -64,7 +68,7 @@ class HistoryService
         ];
     }
 
-    private function getRecentScans(User|int $user): Collection
+    private static function getRecentScans(User|int $user): Collection
     {
         return $user->history()->latest()->take(3)->select('id', 'scan_type', 'result', 'data')->get();
     }
