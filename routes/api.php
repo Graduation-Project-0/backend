@@ -23,9 +23,10 @@ Route::group([
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
     // email verification
-    Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+    Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail']) // verify!!!!
+        ->middleware(['signed', 'throttle:6,1'])
         ->name('verification.verify');
-    Route::post('/email/verification-notification', [AuthController::class, 'resendVerificationEmail']);
+    Route::post('/email/verification-notification', [AuthController::class, 'resendVerificationEmail']); // resend!!!!
 
     // social media login
     Route::get('/auth/{provider}/redirect', [AuthController::class, 'redirect'])

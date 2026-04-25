@@ -15,6 +15,8 @@ use App\Services\PasswordResetService;
 use App\Services\SocialAuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
+use Illuminate\Validation\ValidationException;
 use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
@@ -47,7 +49,7 @@ class AuthController extends Controller
     public function login(LoginRequest $request): JsonResponse
     {
         $validated = $request->validated();
-        $user = $this->authService->login($validated['email'], $validated['password']);
+        $this->authService->login($validated['email'], $validated['password']);
 
         return response()->json([
             'message' => 'Verification code has been sent to your email address.',
@@ -156,20 +158,19 @@ class AuthController extends Controller
     /**
      * Verify user email.
      */
-    public function verifyEmail(string $id, string $hash): JsonResponse
+    public function verifyEmail(string $id, string $hash)
     {
-        // Verify the signed URL
-        if (! request()->hasValidSignature()) {
-            return response()->json([
-                'message' => 'Invalid or expired verification link.',
-            ], 403);
+        try {
+            if (! request()->hasValidSignature()) {
+                return redirect()->to(config('app.frontend_url') . '/email-verified?failed=true&message=Invalid or expired verification link.');
+            }
+
+            $this->emailVerificationService->verifyEmail($id, $hash);
+
+            return redirect()->to(config('app.frontend_url') . '/email-verified');
+        } catch (ValidationException $e) {
+            return redirect()->to(config('app.frontend_url') . '/email-verified?failed=true&message=An Error Occurred');
         }
-
-        $this->emailVerificationService->verifyEmail($id, $hash);
-
-        return response()->json([
-            'message' => 'Email verified successfully.',
-        ]);
     }
 
     /**

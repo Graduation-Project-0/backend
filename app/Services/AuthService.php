@@ -50,7 +50,6 @@ class AuthService
             ]);
         }
 
-        // Send OTP instead of generating token
         $this->otpService->generateAndSendOtp($user);
 
         return $user;

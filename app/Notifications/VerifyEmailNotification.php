@@ -41,9 +41,7 @@ class VerifyEmailNotification extends Notification
      */
     protected function verificationUrl($notifiable): string
     {
-        $frontendUrl = config('app.frontend_url', config('app.url'));
-
-        $signedUrl = URL::temporarySignedRoute(
+        return URL::temporarySignedRoute(
             'verification.verify',
             now()->addHours(24),
             [
@@ -51,16 +49,6 @@ class VerifyEmailNotification extends Notification
                 'hash' => sha1($notifiable->getEmailForVerification()),
             ]
         );
-
-        $parsedUrl = parse_url($signedUrl);
-        parse_str($parsedUrl['query'] ?? '', $queryParams);
-
-        return $frontendUrl.'/verify-email?'.http_build_query([
-            'id' => $notifiable->getKey(),
-            'hash' => sha1($notifiable->getEmailForVerification()),
-            'expires' => $queryParams['expires'] ?? '',
-            'signature' => $queryParams['signature'] ?? '',
-        ]);
     }
 
     /**
