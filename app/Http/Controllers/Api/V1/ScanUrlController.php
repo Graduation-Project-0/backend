@@ -15,7 +15,7 @@ class ScanUrlController extends Controller
             'url' => $request->get('url'),
         ]);
 
-        HistoryService::createHistory($request->user(), 'url', null, $response->json());
+        HistoryService::createHistory($request->user(), 'url', $response->json('data.prediction'), $response->json());
 
         return response()->json([
             'status' => true,
@@ -29,7 +29,7 @@ class ScanUrlController extends Controller
             'url' => $request->get('url'),
         ]);
 
-        HistoryService::createHistory($request->user(), 'url', null, $response->json());
+        HistoryService::createHistory($request->user(), 'url', $response->json('data.prediction'), $response->json());
 
         return response()->json([
             'status' => true,

@@ -17,7 +17,7 @@ class ScanFileController extends Controller
             $request->file('file')->getClientOriginalName()
         )->post(config('services.remote_server.file_scanning_url'));
 
-        HistoryService::createHistory($request->user(), 'file', null, $response->json());
+        HistoryService::createHistory($request->user(), 'file', $response->json('data.prediction'), $response->json());
 
         return response()->json([
             'status' => true,
@@ -33,7 +33,7 @@ class ScanFileController extends Controller
             $request->file('file')->getClientOriginalName()
         )->post(config('services.remote_server.file_scanning_url_standard'));
 
-        HistoryService::createHistory($request->user(), 'file', null, $response->json());
+        HistoryService::createHistory($request->user(), 'file', $response->json('data.prediction'), $response->json());
 
         return response()->json([
             'status' => true,
