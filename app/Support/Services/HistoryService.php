@@ -70,6 +70,6 @@ class HistoryService
 
     private static function getRecentScans(User|int $user): Collection
     {
-        return $user->history()->latest()->take(3)->select('id', 'scan_type', 'result', 'data')->get();
+        return $user->history()->latest()->select('id', 'scan_type', 'result', 'data')->get();
     }
 }
